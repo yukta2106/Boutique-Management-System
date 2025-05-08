@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Cart | VastraFusion</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      .navbar {
+        background: #343a40;
+      }
+
+      .section-title {
+        text-align: center;
+        margin-top: 50px;
+        margin-bottom: 30px;
+        font-weight: 600;
+      }
+
+      .product-card {
+        transition: transform 0.3s ease-in-out;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .product-card:hover {
+        transform: scale(1.05);
+      }
+
+      .card-img-top {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        border-radius: 10px;
+      }
+
+      .remove-btn {
+        margin-top: 10px;
+      }
+
+      .cart-total {
+        text-align: right;
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/home">VastraFusion</a>
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/home">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/orders" id="orders">Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="/cart" id="cart">Your Cart</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/contact">Contact</a>
+            </li>
+          </ul>
+        </div>
+        <button class="btn btn-danger btn-logout">Logout</button>
+      </div>
+    </nav>
+
+    <div class="container mt-5">
+      <h2 class="section-title">Your Cart</h2>
+      <div class="row" id="cart-items">
+        {% if products %} {% for product in products %}
+        <div class="col-md-4 mb-4">
+          <div class="card product-card">
+            <img
+              src="{{ url_for('static', filename='images/{}.jpeg'.format(product.image_url)) }}"
+              class="card-img-top"
+              alt="{{ product.name }}"
+            />
+            <div class="card-body">
+              <h5 class="card-title">{{ product.name }}</h5>
+              <p class="card-text">Price: ₹{{ product.price }}</p>
+              <p class="card-text">Quantity: {{ product.quantity }}</p>
+              <button
+                class="btn btn-danger remove-btn"
+                data-product-id="{{ product.product_id }}"
+                data-name="{{ product.name }}"
+                data-price="{{ product.price }}"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+        {% endfor %} {% else %}
+        <p class="text-center" id="default-message">Your cart is empty.</p>
+        {% endif %}
+      </div>
+      <div class="cart-total">
+        Total: ₹<span id="cart-total">0.00</span>
+        <button class="btn btn-success ms-3" id="checkout-btn">
+          Proceed to Checkout
+        </button>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const customerId = parseInt(localStorage.getItem("customer_id"), 10);
+        const cartItemsDiv = document.getElementById("cart-items");
+        const defaultMessageDiv = document.getElementById("default-message");
+        const cartLink = document.getElementById("cart");
+        const ordersLink = document.getElementById("orders");
+        const checkoutButton = document.getElementById("checkout-btn");
+        const logoutButton = document.querySelector(".btn-logout");
+        const cartTotalSpan = document.getElementById("cart-total"); // Get the cart total span
+
+        if (isNaN(customerId)) {
+          alert("Please log in first.");
+          window.location.href = "/";
+          return;
+        }
+
+        if (cartLink) {
+          cartLink.href = `/cart?customer_id=${customerId}`;
+        }
+        if (ordersLink) {
+          ordersLink.href = `/orders?customer_id=${customerId}`;
+        }
+
+        if (logoutButton) {
+          logoutButton.addEventListener("click", () => {
+            window.location.href = "/";
+          });
+        }
+
+        function updateCartTotal() {
+          let total = 0;
+          const cartItems = document.querySelectorAll("#cart-items .col-md-4");
+          cartItems.forEach((item) => {
+            const priceText = item.querySelector(
+              ".card-text:nth-child(2)"
+            )?.textContent;
+            const quantityText = item.querySelector(
+              ".card-text:nth-child(3)"
+            )?.textContent;
+            const price = parseFloat(priceText?.split("₹")[1]) || 0;
+            const quantity = parseInt(quantityText?.split(": ")[1]) || 0;
+            total += price * quantity;
+          });
+          if (cartTotalSpan) {
+            cartTotalSpan.textContent = total.toFixed(2);
+          }
+        }
+
+        function displayCartItems(items) {
+          cartItemsDiv.innerHTML = "";
+          let total = 0;
+          if (items && items.length > 0) {
+            if (defaultMessageDiv) {
+              defaultMessageDiv.remove();
+            }
+            items.forEach((product) => {
+              const card = document.createElement("div");
+              card.classList.add("col-md-4", "mb-4");
+              card.innerHTML = `
+                    <div class="card product-card">
+                        <img src="/static/images/${product.image_url}.jpeg" class="card-img-top" alt="${product.name}">
+                        <div class="card-body">
+                            <h5 class="card-title">${product.name}</h5>
+                            <p class="card-text">Price: ₹${product.price}</p>
+                            <p class="card-text">Quantity: ${product.quantity}</p>
+                            <button
+                                class="btn btn-danger remove-btn"
+                                data-product-id="${product.product_id}"
+                                data-name="${product.name}"
+                                data-price="${product.price}"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+              cartItemsDiv.appendChild(card);
+              total += product.price * product.quantity;
+            });
+            attachRemoveListeners();
+          } else {
+            cartItemsDiv.innerHTML =
+              '<p class="text-center" id="default-message">Your cart is empty.</p>';
+          }
+          if (cartTotalSpan) {
+            cartTotalSpan.textContent = total.toFixed(2);
+          }
+        }
+
+        function fetchAndDisplayCart() {
+          fetch(`/getCartItems?customer_id=${customerId}`)
+            .then((response) => response.json())
+            .then(displayCartItems)
+            .catch((error) =>
+              console.error("Error loading cart items:", error)
+            );
+        }
+
+        function attachRemoveListeners() {
+          document.querySelectorAll(".remove-btn").forEach((button) => {
+            button.addEventListener("click", function () {
+              const productIdToRemove = this.getAttribute("data-product-id");
+              const cartItemToRemove = this.closest(".col-md-4");
+
+              fetch("/removeFromCart", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  product_id: productIdToRemove,
+                  customer_id: customerId,
+                }),
+              })
+                .then((response) => response.json())
+                .then((data) => {
+                  alert(data.message);
+                  if (data?.message?.includes("removed") && cartItemToRemove) {
+                    cartItemToRemove.remove();
+                    updateCartTotal();
+                    if (
+                      document.querySelectorAll("#cart-items .col-md-4")
+                        .length === 0
+                    ) {
+                      fetchAndDisplayCart();
+                    }
+                  }
+                })
+                .catch((error) =>
+                  console.error("Error removing item from cart:", error)
+                );
+            });
+          });
+        }
+
+        if (checkoutButton) {
+          checkoutButton.addEventListener("click", () => {
+            fetch("/checkout", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ customer_id: customerId }),
+            })
+              .then((response) => {
+                return response.json();
+              })
+              .then((data) => {
+                if (data && data.message === "Order(s) placed successfully!") {
+                  alert(data.message);
+                  // Clear the cart items from the webpage
+                  cartItemsDiv.innerHTML = "";
+                  // Update the cart total to 0.00
+                  if (cartTotalSpan) {
+                    cartTotalSpan.textContent = "0.00";
+                  }
+                  // Optionally, display the "Your cart is empty" message
+                  if (defaultMessageDiv) {
+                    defaultMessageDiv.style.display = "block";
+                  } else {
+                    cartItemsDiv.innerHTML =
+                      '<p class="text-center" id="default-message">Your cart is empty.</p>';
+                  }
+                  window.location.href = `/orders?customer_id=${customerId}`;
+                } else {
+                  alert(
+                    `Checkout failed: ${
+                      data?.error ||
+                      data?.message ||
+                      "An unexpected error occurred."
+                    }`
+                  );
+                }
+              })
+              .catch((error) => {
+                console.error("Error during checkout:", error);
+                alert("An error occurred during checkout.");
+              });
+          });
+        }
+
+        fetchAndDisplayCart();
+      });
+    </script>
+  </body>
+</html>
